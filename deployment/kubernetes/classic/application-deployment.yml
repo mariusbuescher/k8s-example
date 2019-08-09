@@ -1,0 +1,86 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: application
+  labels:
+    app: schools
+    tier: application
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: schools
+      tier: application
+  template:
+    metadata:
+      labels:
+        app: schools
+        tier: application
+    spec:
+      containers:
+        - name: php-fpm
+          # CHANGEME to your image name and tag
+          image: mariusbuescher/k8s-example-php-fpm:latest
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: psql-pass
+                  key: dsn
+            - name: APP_ENV
+              value: prod
+            - name: TRUSTED_PROXIES
+              value: 10.108.0.0/16
+        - name: nginx
+          # CHANGEME to your image name and tag
+          image: mariusbuescher/k8s-example-nginx:latest
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /healthcheck/ping
+              port: 80
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+            periodSeconds: 5
+      initContainers:
+        - name: db-migration
+          # CHANGEME to your image name and tag
+          image: mariusbuescher/k8s-example-php-fpm:latest
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: psql-pass
+                  key: dsn
+            - name: APP_ENV
+              value: prod
+          command: ['sh', '-c', 'bin/console doctrine:migrations:migrate --allow-no-migration -n']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: application
+spec:
+  selector:
+    app: schools
+    tier: application
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: application-ingress
+spec:
+  rules:
+    - host: schools.localkube
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: application
+              servicePort: 80

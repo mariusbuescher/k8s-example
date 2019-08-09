@@ -1,0 +1,8 @@
+secretGenerator:
+  - name: psql-pass
+    literals:
+      - password=adsF@@apkxt5Mtdo
+      - dsn=postgres://application:adsF@@apkxt5Mtdo@database:5432/schools
+resources:
+  - database-deployment.yml
+  - application-deployment.yml
